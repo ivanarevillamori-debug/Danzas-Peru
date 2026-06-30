@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Danzas Típicas del Perú - Juego de Memoria</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; background: #1a0a2e; min-height: 100vh; display: flex; flex-direction: column; align-items: center; padding: 24px 16px; }
+  h1 { font-size: 22px; font-weight: 700; color: #f5d76e; margin-bottom: 4px; text-align: center; text-shadow: 0 0 20px rgba(245,215,110,0.4); }
+  .subtitle { font-size: 13px; color: #c9a8e0; margin-bottom: 16px; }
+  #stats { display: flex; gap: 24px; font-size: 14px; color: #c9a8e0; margin-bottom: 12px; }
+  #stats b { color: #f5d76e; }
+  #msg { font-size: 14px; font-weight: 600; color: #f5d76e; min-height: 20px; margin-bottom: 8px; text-align: center; }
+  #grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; width: 100%; max-width: 580px; }
+  .card { aspect-ratio: 3/4; cursor: pointer; perspective: 600px; }
+  .card-inner { width: 100%; height: 100%; position: relative; transform-style: preserve-3d; transition: transform 0.45s ease; border-radius: 12px; }
+  .card.flipped .card-inner, .card.matched .card-inner { transform: rotateY(180deg); }
+  .card-front, .card-back { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; border-radius: 12px; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+  .card-front { background: #2d1b4e; border: 2px solid #6a3fa0; }
+  .card-front-icon { font-size: 36px; }
+  .card-back { transform: rotateY(180deg); padding: 8px; text-align: center; border: 2px solid transparent; }
+  .card.matched .card-back { border-color: #f5d76e !important; box-shadow: 0 0 12px rgba(245,215,110,0.4); }
+  .card-back .emoji { font-size: 34px; margin-bottom: 5px; }
+  .card-back .danza { font-size: 10px; font-weight: 700; margin-bottom: 4px; letter-spacing: 0.06em; text-transform: uppercase; }
+  .card-back .dato { font-size: 9.5px; line-height: 1.4; }
+
+  .c-marinera  .card-back { background: #3a0a0a; border-color: #e05050; } .c-marinera .danza { color: #f5a0a0; } .c-marinera .dato { color: #f0c0c0; }
+  .c-diablada  .card-back { background: #1a0a3a; border-color: #9060e0; } .c-diablada .danza { color: #c090f5; } .c-diablada .dato { color: #d8b8f8; }
+  .c-huayno    .card-back { background: #0a2a10; border-color: #40b060; } .c-huayno .danza { color: #80d890; } .c-huayno .dato { color: #b0e8b8; }
+  .c-festejo   .card-back { background: #2a1a00; border-color: #d08020; } .c-festejo .danza { color: #f5c060; } .c-festejo .dato { color: #f8d898; }
+  .c-tijeras   .card-back { background: #002a2a; border-color: #20b0b0; } .c-tijeras .danza { color: #60d8d8; } .c-tijeras .dato { color: #a0e8e8; }
+  .c-saya      .card-back { background: #2a0a20; border-color: #d040a0; } .c-saya .danza { color: #f080c8; } .c-saya .dato { color: #f8b0dc; }
+  .c-pandilla  .card-back { background: #1a2a00; border-color: #88c020; } .c-pandilla .danza { color: #b8e050; } .c-pandilla .dato { color: #d0ee90; }
+  .c-caporales .card-back { background: #2a1000; border-color: #e06820; } .c-caporales .danza { color: #f5a060; } .c-caporales .dato { color: #f8c8a0; }
+
+  #controls { margin-top: 14px; display: flex; gap: 10px; }
+  button { font-size: 13px; padding: 7px 22px; border: 1.5px solid #6a3fa0; background: #2d1b4e; border-radius: 8px; cursor: pointer; font-family: inherit; color: #f5d76e; transition: background 0.15s; font-weight: 500; }
+  button:hover { background: #3d2b6e; }
+  #win-panel { display: none; flex-direction: column; align-items: center; gap: 12px; padding: 28px; background: #2d1b4e; border: 2px solid #f5d76e; border-radius: 14px; max-width: 440px; text-align: center; margin-top: 16px; box-shadow: 0 0 30px rgba(245,215,110,0.2); }
+  #win-panel h2 { font-size: 20px; font-weight: 700; color: #f5d76e; }
+  #win-panel p { font-size: 14px; color: #c9a8e0; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<h1>💃 Danzas Típicas del Perú</h1>
+<p class="subtitle">Encuentra las parejas — Secundaria</p>
+<div id="stats">
+  <span>Intentos: <b id="moves">0</b></span>
+  <span>Parejas: <b id="pairs">0</b> / 8</span>
+</div>
+<div id="msg"></div>
+<div id="grid"></div>
+<div id="controls">
+  <button id="btn-reset">🔄 Reiniciar</button>
+</div>
+<div id="win-panel">
+  <div style="font-size:48px">🏆</div>
+  <h2>¡Excelente bailarín/a!</h2>
+  <p id="win-msg"></p>
+  <button id="btn-win-reset">Jugar de nuevo</button>
+</div>
+
+<script>
+const danzas = [
+  { id:'marinera',  cls:'c-marinera',  emoji:'🌹', nombre:'Marinera',       dato:'Danza nacional del Perú. Elegante cortejo entre hombre y mujer con pañuelo.' },
+  { id:'diablada',  cls:'c-diablada',  emoji:'😈', nombre:'Diablada',       dato:'Danza del Altiplano. Representa la lucha entre el bien y el mal. Puno.' },
+  { id:'huayno',    cls:'c-huayno',    emoji:'🎵', nombre:'Huayno',         dato:'Danza andina más popular del Perú. Origen prehispánico, sierra y selva.' },
+  { id:'festejo',   cls:'c-festejo',   emoji:'🥁', nombre:'Festejo',        dato:'Danza afroperuana. Alegre y sensual, originaria de la costa peruana.' },
+  { id:'tijeras',   cls:'c-tijeras',   emoji:'✂️', nombre:'Danza de Tijeras', dato:'Declarada Patrimonio por la UNESCO. Danzantes acrobáticos de Ayacucho.' },
+  { id:'saya',      cls:'c-saya',      emoji:'🎺', nombre:'Saya Afro',      dato:'Danza afroperuana de Chincha. Ritmo africano traído en época colonial.' },
+  { id:'pandilla',  cls:'c-pandilla',  emoji:'🎉', nombre:'Pandilla Puneña', dato:'Danza de carnaval de Puno. Grupos de personas bailando en las calles.' },
+  { id:'caporales', cls:'c-caporales', emoji:'🔔', nombre:'Caporales',      dato:'Danza del Altiplano. Representa a los capataces de esclavos africanos.' },
+];
+
+let flipped = [], moves = 0, pairs = 0, locked = false;
+
+function shuffle(arr) {
+  const a = [...arr];
+  for(let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function build() {
+  const grid = document.getElementById('grid');
+  grid.innerHTML = '';
+  moves = 0; pairs = 0; flipped = []; locked = false;
+  document.getElementById('moves').textContent = 0;
+  document.getElementById('pairs').textContent = 0;
+  document.getElementById('msg').textContent = '';
+  document.getElementById('win-panel').style.display = 'none';
+  grid.style.display = 'grid';
+  document.getElementById('controls').style.display = 'flex';
+
+  const deck = shuffle([...danzas, ...danzas].map((c, i) => ({...c, uid: i})));
+
+  deck.forEach(c => {
+    const el = document.createElement('div');
+    el.className = 'card ' + c.cls;
+    el.dataset.id = c.id;
+    el.innerHTML = `
+      <div class="card-inner">
+        <div class="card-front"><div class="card-front-icon">💃</div></div>
+        <div class="card-back">
+          <div class="emoji">${c.emoji}</div>
+          <div class="danza">${c.nombre}</div>
+          <div class="dato">${c.dato}</div>
+        </div>
+      </div>`;
+    el.addEventListener('click', () => flip(el));
+    grid.appendChild(el);
+  });
+}
+
+function flip(el) {
+  if (locked || el.classList.contains('flipped') || el.classList.contains('matched')) return;
+  el.classList.add('flipped');
+  flipped.push(el);
+  if (flipped.length === 2) {
+    moves++;
+    document.getElementById('moves').textContent = moves;
+    locked = true;
+    setTimeout(check, 950);
+  }
+}
+
+function check() {
+  const [a, b] = flipped;
+  if (a.dataset.id === b.dataset.id) {
+    a.classList.add('matched'); b.classList.add('matched');
+    pairs++;
+    document.getElementById('pairs').textContent = pairs;
+    document.getElementById('msg').textContent = '¡Par encontrado! 🎉';
+    setTimeout(() => { document.getElementById('msg').textContent = ''; }, 1200);
+    if (pairs === 8) setTimeout(win, 500);
+  } else {
+    a.classList.remove('flipped'); b.classList.remove('flipped');
+    document.getElementById('msg').textContent = '¡Sigue bailando! 💃';
+    setTimeout(() => { document.getElementById('msg').textContent = ''; }, 950);
+  }
+  flipped = []; locked = false;
+}
+
+function win() {
+  document.getElementById('grid').style.display = 'none';
+  document.getElementById('controls').style.display = 'none';
+  const panel = document.getElementById('win-panel');
+  panel.style.display = 'flex';
+  let cal = moves <= 12 ? '¡Memoria increíble! Terminaste en ' : moves <= 20 ? '¡Muy bien! Terminaste en ' : 'Terminaste en ';
+  document.getElementById('win-msg').textContent = cal + moves + ' intentos. Ya conoces 8 danzas típicas del Perú. 🇵🇪';
+}
+
+document.getElementById('btn-reset').onclick = build;
+document.getElementById('btn-win-reset').onclick = build;
+
+build();
+</script>
+</body>
+</html>
